@@ -12,9 +12,6 @@
 WORKING_DIR ?= $(HOME)
 DISCONNECTED ?= true
 PLUGIN ?=
-GLOBAL_VARS ?= config/global.yaml
-CERTS_VARS ?= config/certificates.yaml
-CLOUD_INFRA_VARS ?= config/cloud_infra.yaml
 
 # Ansible
 AP = ansible-playbook
@@ -64,9 +61,6 @@ help:
 	@echo "  WORKING_DIR      - Working directory (default: $$HOME)"
 	@echo "  DISCONNECTED     - Disconnected mode (default: true)"
 	@echo "  PLUGIN           - Plugin name for deploy-plugin target"
-	@echo "  GLOBAL_VARS      - Path to global vars file (default: config/global.yaml)"
-	@echo "  CERTS_VARS       - Path to certificates vars file (default: config/certificates.yaml)"
-	@echo "  CLOUD_INFRA_VARS - Path to cloud infra vars file (default: config/cloud_infra.yaml)"
 	@echo ""
 	@echo "Current values:"
 	@echo "  WORKING_DIR=$(WORKING_DIR)"
@@ -89,10 +83,10 @@ setup-ansible:
 
 # Validation targets
 validate-config:
-	@bash ./validations.sh --global-vars $(GLOBAL_VARS) --certs-vars $(CERTS_VARS)
+	@bash ./validations.sh
 
 validate-schema:
-	@$(AP) playbooks/validate-schema.yaml -e@$(GLOBAL_VARS) -e@$(CERTS_VARS) --tags validate-config
+	@$(AP) playbooks/validation/validate-schema.yaml --tags validate-config
 
 # Deploy targets
 deploy-cluster:
@@ -120,7 +114,7 @@ deploy-cluster-day2:
 	@$(AP) playbooks/06-day2.yaml $(AP_FLAGS)
 
 deploy-cluster-discovery:
-	@$(AP) playbooks/07-configure-discovery.yaml $(AP_FLAGS) -e@$(CLOUD_INFRA_VARS)
+	@$(AP) playbooks/07-configure-discovery.yaml $(AP_FLAGS)
 
 deploy-cluster-connected:
 	@$(MAKE) deploy-cluster DISCONNECTED=false
@@ -142,10 +136,10 @@ mirror-plugin:
 
 # Convenience targets
 bootstrap:
-	@bash ./bootstrap.sh --global-vars $(GLOBAL_VARS) --certs-vars $(CERTS_VARS)
+	@bash ./bootstrap.sh
 
 sync:
-	@bash ./sync.sh $(GLOBAL_VARS) $(CERTS_VARS)
+	@bash ./sync.sh
 
 python-format:
 	@uv run ruff format src/

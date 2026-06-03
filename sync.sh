@@ -2,6 +2,11 @@
 set -o pipefail
 set -e
 
+# Config file paths — single source of truth is load-vars.yaml inside playbooks.
+# These are only used for shell-level checks and getValue before Ansible runs.
+global_vars=config/global.yaml
+certs_vars=config/certificates.yaml
+
 getValue(){
     python -c 'import sys, yaml, json; print(json.dumps(yaml.safe_load(sys.stdin)))' < $global_vars \
         | jq -r $1
@@ -12,8 +17,6 @@ step_done(){
     date | tee -a ${log}
 }
 
-global_vars=${1:-config/global.yaml}
-certs_vars=${2:-config/certificates.yaml}
 workingDir=$(getValue .workingDir)
 lck=~/.lck-rh-lz
 DSTAMP=$(date +%Y%m%d_%H%M%S)
@@ -69,26 +72,26 @@ done
 step_done
 
 echo "Validating Config .. " | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/validation/validate-schema.yaml -e fresh=false -e@$global_vars -e@$certs_vars --tags validate-config
-    bash ./validations.sh --global-vars $global_vars --certs-vars $certs_vars 2>&1 | tee -a ${log}
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/validation/validate-schema.yaml -e fresh=false --tags validate-config
+    bash ./validations.sh 2>&1 | tee -a ${log}
 step_done
 
 echo "Building local cache .. " | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/02-mirror.yaml -e fresh=false -e@$global_vars -e@$certs_vars --tags mirror-registry
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/02-mirror.yaml -e fresh=false --tags mirror-registry
 step_done
 
 echo "Quay disconnected .." | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false -e@$global_vars -e@$certs_vars --tags quay-disconnected
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false --tags quay-disconnected
 step_done
 
 echo "Clair disconnected .." | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false -e@$global_vars -e@$certs_vars --tags clair-disconnected
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false --tags clair-disconnected
 step_done
 
 echo "ACM ClusterImageSets .." | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false -e@$global_vars -e@$certs_vars --tags acm-cis
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false --tags acm-cis
 step_done
 
 echo "OpenShift Pipelines .." | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false -e@$global_vars -e@$certs_vars --tags openshift-pipelines
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e fresh=false --tags openshift-pipelines
 step_done

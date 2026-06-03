@@ -6,8 +6,6 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --global-vars FILE    Path to global vars file (default: config/global.yaml)"
-    echo "  --certs-vars FILE     Path to certificates vars file (default: config/certificates.yaml)"
     echo "  --step STEP           Run a single step instead of all steps"
     echo "  --non-interactive     Skip interactive prompts"
     echo "  -h, --help            Show this help message"
@@ -27,22 +25,17 @@ usage() {
     exit "${1:-0}"
 }
 
+# Config file paths — single source of truth is load-vars.yaml inside playbooks.
+# These are only used for shell-level checks and getValue before Ansible runs.
 global_vars=config/global.yaml
 certs_vars=config/certificates.yaml
 cloud_infra_vars=config/cloud_infra.yaml
+
 run_step=""
 non_interactive=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --global-vars)
-            global_vars="$2"
-            shift 2
-            ;;
-        --certs-vars)
-            certs_vars="$2"
-            shift 2
-            ;;
         --step)
             run_step="$2"
             shift 2
@@ -89,11 +82,6 @@ echo " "
 echo "This script is designed to be re-run on demand "
 echo "NOTE: Every run will destroy the entire cloud  "
 echo "      Some functions will reuse local caches   "
-echo ""
-echo "Config files:"
-echo "  Global vars:  $global_vars"
-echo "  Certificates: $certs_vars"
-echo "  Cloud infra:  $cloud_infra_vars"
 echo ""
 
 getValue(){
@@ -197,18 +185,16 @@ step_setup() {
 
 step_validate() {
     echo "Validating Config .. "  | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/validation/validate-schema.yaml $EXTRA_VARS \
-        -e@$global_vars -e@$certs_vars -e@$cloud_infra_vars \
-        --tags validate-config
-    bash ./validations.sh --global-vars $global_vars --certs-vars $certs_vars 2>&1 | tee -a ${log}
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/validation/validate-schema.yaml $EXTRA_VARS --tags validate-config
+    bash ./validations.sh 2>&1 | tee -a ${log}
     step_done
 }
 
 step_download_content() {
     echo "Downloading Deps Content .. " | tee -a ${log}
     # Download control binaries (oc, helm, etc.) first - required by download-content tasks
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/01-prepare.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags download-control-binaries
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/01-prepare.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags download-content
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/01-prepare.yaml $EXTRA_VARS --tags download-control-binaries
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/01-prepare.yaml $EXTRA_VARS --tags download-content
     step_done
 }
 
@@ -217,47 +203,47 @@ step_build_cache() {
     if [ "$is_disconnected" = false ]; then
         echo "Connected mode - skipping mirror registry setup" | tee -a ${log}
     else
-        ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/02-mirror.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags mirror-registry
+        ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/02-mirror.yaml $EXTRA_VARS --tags mirror-registry
     fi
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/03-deploy.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags configure-abi
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/03-deploy.yaml $EXTRA_VARS --tags configure-abi
     step_done
 }
 
 step_acquire_hardware() {
     echo "Acquiring Hardware .. " | tee -a ${log}
     # setup content for and boot machines
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/03-deploy.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags hardware,pre-install-validate
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/03-deploy.yaml $EXTRA_VARS --tags hardware,pre-install-validate
     step_done
 }
 
 step_deploy() {
     echo "Deploying management cluster .. " | tee -a ${log}
     # deploy Red Hat payload cluster
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/03-deploy.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags wait-deployment
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/03-deploy.yaml $EXTRA_VARS --tags wait-deployment
     step_done
 }
 
 step_post_install() {
     echo "Post install config.. " | tee -a ${log}
     # Apply SSL certificates
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/04-post-install.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags post-install-config
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/04-post-install.yaml $EXTRA_VARS --tags post-install-config
     step_done
 }
 
 step_operators() {
     echo "Deploying management apps  .. " | tee -a ${log}
     # deploy Red Hat payload cluster
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/05-operators.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags operators
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/05-operators.yaml $EXTRA_VARS --tags operators
     step_done
 }
 
 step_day2() {
     echo "Clair disconnected .." | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags clair-disconnected
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml $EXTRA_VARS --tags clair-disconnected
     step_done
 
     echo "Catalog source ACM policy .." | tee -a ${log}
-    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml -e@$global_vars -e@$certs_vars $EXTRA_VARS --tags acm-policy-catalogsources
+    ANSIBLE_LOG_PATH=${log} ansible-playbook playbooks/06-day2.yaml $EXTRA_VARS --tags acm-policy-catalogsources
     step_done
 }
 
@@ -270,8 +256,8 @@ step_discovery() {
 
     echo "Start discovering nodes.. " | tee -a ${log}
     if [ -f $cloud_infra_vars ]; then
-        if ! ANSIBLE_LOG_PATH=${log} ansible-playbook -e @$global_vars -e @$certs_vars -e @$cloud_infra_vars $EXTRA_VARS playbooks/07-configure-discovery.yaml; then
-            echo -e "\\033[31m WARNING! \033[0m  Discovery hosts has failed, please check config and rerun: ANSIBLE_LOG_PATH=${log} ansible-playbook -e @$global_vars -e @$certs_vars -e @$cloud_infra_vars playbooks/07-configure-discovery.yaml"
+        if ! ANSIBLE_LOG_PATH=${log} ansible-playbook $EXTRA_VARS playbooks/07-configure-discovery.yaml; then
+            echo -e "\\033[31m WARNING! \033[0m  Discovery hosts has failed, please check config and rerun: ANSIBLE_LOG_PATH=${log} ansible-playbook $EXTRA_VARS playbooks/07-configure-discovery.yaml"
         fi
     fi
     step_done
