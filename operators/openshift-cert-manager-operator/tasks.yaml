@@ -39,10 +39,10 @@
               overrideResources:
                 limits:
                   cpu: 20m
-                  memory: 32Mi
+                  memory: 128Mi
                 requests:
                   cpu: 20m
-                  memory: 32Mi
+                  memory: 128Mi
 
     - name: Read back CertManager CR
       kubernetes.core.k8s_info:
