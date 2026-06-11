@@ -1,0 +1,13 @@
+---
+# Red Hat Sovereign Enclave - Migrations
+#
+# This file contains all migration tasks for upgrading from previous Enclave versions.
+# Called from upgrade.yaml via include_tasks.
+#
+# Individual migrations are organized under playbooks/tasks/migrations/ and are
+# conditionally included based on enabled_plugins and other runtime conditions.
+
+- name: Foundation plugin catalog source migration
+  ansible.builtin.include_tasks:
+    file: migrations/foundation_plugin_catalog_sources.yaml
+  when: disconnected | default(true) | bool
