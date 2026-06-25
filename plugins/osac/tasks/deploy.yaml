@@ -40,7 +40,7 @@
     kind: Deployment
     namespace: osac
     label_selectors:
-      - "app.kubernetes.io/managed-by=automationgateway"
+      - "app.kubernetes.io/component=aap-gateway"
   register: __r_aap_gateway
   retries: 90
   delay: 30
@@ -58,7 +58,7 @@
     kind: Route
     namespace: osac
     label_selectors:
-      - "app.kubernetes.io/managed-by=automationgateway"
+      - "app.kubernetes.io/managed-by=aap-operator"
   register: __r_aap_route
 
 - name: Assert exactly one AAP route found
@@ -66,7 +66,7 @@
     that: __r_aap_route.resources | length == 1
     fail_msg: >-
       Expected exactly one AAP gateway route in osac namespace
-      (managed-by=automationgateway), found {{ __r_aap_route.resources | length }}.
+      (managed-by=aap-operator), found {{ __r_aap_route.resources | length }}.
 
 - name: Set AAP URL fact
   ansible.builtin.set_fact:
@@ -82,7 +82,7 @@
     regexp: "{{ _osac_aap_route_host | regex_escape() }}"
     state: present
   become: true
-  when: enclave_deployment_mode | default('') == 'connected'
+  when: not disconnected | default(true) | bool
 
 # =====================================================================
 # 4. Create AAP personal access token via awx-manage
@@ -128,20 +128,18 @@
         token: "{{ _osac_aap_token }}"
   no_log: true
 
-- name: Patch OSAC operator deployment with AAP URL
+- name: Patch OSAC operator deployment with AAP URL and AAP token
   kubernetes.core.k8s:
-    state: present
+    state: patched
+    kind: Deployment
+    name: osac-operator
+    namespace: osac
     definition:
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: osac-operator
-        namespace: osac
       spec:
         template:
           spec:
             containers:
-              - name: osac-operator
+              - name: manager
                 env:
                   - name: OSAC_AAP_URL
                     value: "{{ _osac_aap_url }}"
@@ -172,4 +170,4 @@
 
 - name: Log OSAC deploy completion
   ansible.builtin.debug:
-    msg: "OSAC deploy complete. AAP URL={{ _osac_aap_url }}, operator patched and rolled out."
+    msg: "OSAC deploy complete. Operator patched and rolled out."
