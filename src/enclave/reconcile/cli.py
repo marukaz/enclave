@@ -9,7 +9,11 @@ from enclave.reconcile.cluster_upgrade import (
     reconcile as cluster_upgrade_reconcile,
 )
 from enclave.reconcile.operator_versions import reconcile as operator_versions_reconcile
-from enclave.utils import LOG_LEVELS, configure_logging
+from enclave.utils import (
+    LOG_LEVELS,
+    KubeconfigGroup,
+    configure_logging,
+)
 
 
 def defaults_path(filename: str) -> Path:
@@ -22,7 +26,7 @@ def defaults_path(filename: str) -> Path:
     return path
 
 
-@click.group()
+@click.group(cls=KubeconfigGroup)
 @click.option(
     "--log-level",
     default="INFO",
@@ -35,7 +39,7 @@ def cli(log_level: str) -> None:
     configure_logging(log_level)
 
 
-@cli.command()
+@cli.command(no_args_is_help=True)
 @click.option("--name", help="Operator package name")
 @click.option("--version", help="Operator version")
 @click.option("--namespace", help="Operator namespace")
@@ -98,7 +102,7 @@ def operator_versions(
         )
 
 
-@cli.command()
+@cli.command(no_args_is_help=True)
 @click.option(
     "--version", "version", default=None, help="OpenShift version to upgrade to"
 )
