@@ -1,3 +1,4 @@
+{% set channels = plugin.operators | items2dict(key_name='name', value_name='channel') %}
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
@@ -55,7 +56,7 @@ spec:
               name: nfd
               namespace: openshift-nfd
             spec:
-              channel: stable
+              channel: {{ channels['nfd'] }}
               installPlanApproval: Automatic
               name: nfd
               source: {{ catalog_mirror }}
@@ -224,7 +225,7 @@ spec:
               name: servicemeshoperator3
               namespace: openshift-operators
             spec:
-              channel: stable
+              channel: {{ channels['servicemeshoperator3'] }}
               installPlanApproval: Automatic
               name: servicemeshoperator3
               source: {{ catalog_mirror }}
@@ -240,7 +241,7 @@ spec:
               name: rhcl-operator
               namespace: openshift-operators
             spec:
-              channel: stable
+              channel: {{ channels['rhcl-operator'] }}
               installPlanApproval: Automatic
               name: rhcl-operator
               source: {{ catalog_mirror }}
@@ -273,7 +274,7 @@ spec:
               name: leader-worker-set
               namespace: openshift-lws-operator
             spec:
-              channel: stable-v1.0
+              channel: {{ channels['leader-worker-set'] }}
               installPlanApproval: Automatic
               name: leader-worker-set
               source: {{ catalog_mirror }}
@@ -315,7 +316,7 @@ spec:
               name: rhods-operator
               namespace: redhat-ods-operator
             spec:
-              channel: fast-3.x
+              channel: {{ channels['rhods-operator'] }}
               name: rhods-operator
               source: {{ catalog_mirror }}
               sourceNamespace: openshift-marketplace
