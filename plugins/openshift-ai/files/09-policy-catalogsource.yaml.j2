@@ -33,6 +33,9 @@ spec:
             spec:
               image: registry-quay-quay-enterprise.apps.{{ clusterName }}.{{ baseDomain }}/redhat/{{ catalog_mirror }}:{{ catalog_version }}
               sourceType: grpc
+              updateStrategy:
+                registryPoll:
+                  interval: 10m
         - complianceType: musthave
           metadataComplianceType: musthave
           objectDefinition:
@@ -64,6 +67,9 @@ spec:
             spec:
               image: registry-quay-quay-enterprise.apps.{{ clusterName }}.{{ baseDomain }}/redhat/{{ catalog_mirror }}:{{ catalog_version }}
               sourceType: grpc
+              updateStrategy:
+                registryPoll:
+                  interval: 10m
         - complianceType: musthave
           metadataComplianceType: musthave
           objectDefinition:
